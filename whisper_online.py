@@ -4,6 +4,9 @@ import numpy as np
 import librosa  
 from functools import lru_cache
 import time
+import logging
+
+
 import io
 import soundfile as sf
 import math
@@ -225,7 +228,7 @@ class OpenaiApiASR(ASRBase):
 
         # Process transcription/translation
         transcript = proc.create(**params)
-        print(f"OpenAI API processed accumulated {self.transcribed_seconds} seconds",file=self.logfile)
+        logging.debug(f"OpenAI API processed accumulated {self.transcribed_seconds} seconds")
 
         return transcript
 
@@ -559,7 +562,7 @@ def asr_factory(args, logfile=sys.stderr):
     """
     backend = args.backend
     if backend == "openai-api":
-        print("Using OpenAI API.", file=logfile)
+        logging.debug("Using OpenAI API.")
         asr = OpenaiApiASR(lan=args.lan)
     else:
         if backend == "faster-whisper":
@@ -570,14 +573,14 @@ def asr_factory(args, logfile=sys.stderr):
         # Only for FasterWhisperASR and WhisperTimestampedASR
         size = args.model
         t = time.time()
-        print(f"Loading Whisper {size} model for {args.lan}...", file=logfile, end=" ", flush=True)
+        logging.debug(f"Loading Whisper {size} model for {args.lan}...")
         asr = asr_cls(modelsize=size, lan=args.lan, cache_dir=args.model_cache_dir, model_dir=args.model_dir)
         e = time.time()
-        print(f"done. It took {round(e-t,2)} seconds.", file=logfile)
+        logging.debug(f"done. It took {round(e-t,2)} seconds.")
 
     # Apply common configurations
     if getattr(args, 'vad', False):  # Checks if VAD argument is present and True
-        print("Setting VAD filter", file=logfile)
+        logging.info("Setting VAD filter")
         asr.use_vad()
 
     return asr
@@ -611,13 +614,13 @@ if __name__ == "__main__":
 
     asr = asr_factory(args, logfile=logfile)
     language = args.lan
+
     if args.task == "translate":
         asr.set_translate_task()
         tgt_language = "en"  # Whisper translates into English
     else:
         tgt_language = language  # Whisper transcribes in this language
 
-    
     min_chunk = args.min_chunk_size
     if args.buffer_trimming == "sentence":
         tokenizer = create_tokenizer(tgt_language)
@@ -648,7 +651,8 @@ if __name__ == "__main__":
             print("%1.4f %1.0f %1.0f %s" % (now*1000, o[0]*1000,o[1]*1000,o[2]),file=logfile,flush=True)
             print("%1.4f %1.0f %1.0f %s" % (now*1000, o[0]*1000,o[1]*1000,o[2]),flush=True)
         else:
-            print("here?", o,file=logfile,flush=True)
+            # No text, so no output
+            pass
 
     if args.offline: ## offline mode processing (for testing/debugging)
         a = load_audio(audio_path)

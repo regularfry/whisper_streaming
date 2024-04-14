@@ -4,7 +4,9 @@ from whisper_online import *
 import sys
 import argparse
 import os
+import logging
 import numpy as np
+
 parser = argparse.ArgumentParser()
 
 # server options
@@ -34,6 +36,7 @@ size = args.model
 language = args.lan
 
 asr = asr_factory(args)
+
 if args.task == "translate":
     asr.set_translate_task()
     tgt_language = "en"
