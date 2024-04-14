@@ -75,11 +75,13 @@ online = OnlineASRProcessor(asr,tokenizer,buffer_trimming=(args.buffer_trimming,
 
 if os.path.exists(args.warmup_file):
     # load the audio into the LRU cache before we start the timer
-    a = load_audio_chunk(args.warmup_file,0,1)
+    logging.debug(f"Warming up on {arg.warmup_file}")
+    a = load_audio_chunk(demo_audio_path,0,1)
 
     # TODO: it should be tested whether it's meaningful
     # warm up the ASR, because the very first transcribe takes much more time than the other
     asr.transcribe(a)
+    logging.debug("Whisper is warmed up")
 else:
     logging.debug("Whisper is not warmed up")
 
