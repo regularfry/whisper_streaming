@@ -4,6 +4,8 @@ from whisper_online import *
 import sys
 import argparse
 import os
+import logging
+
 parser = argparse.ArgumentParser()
 
 # server options
@@ -11,12 +13,19 @@ parser.add_argument("--host", type=str, default='localhost')
 parser.add_argument("--port", type=int, default=43007)
 
 parser.add_argument("--warmup-file", type=str, dest="warmup_file")
+parser.add_argument("-l", "--log-level", dest="log_level", 
+                    choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                    help="Set the log level",
+                    default='INFO')
 
 
 # options from whisper_online
 add_shared_args(parser)
 args = parser.parse_args()
 
+if args.log_level:
+    logging.basicConfig(format='whisper-server-%(levelname)s: %(message)s',
+                        level=getattr(logging, args.log_level))
 
 # setting whisper object by args 
 
@@ -26,11 +35,12 @@ size = args.model
 language = args.lan
 
 t = time.time()
-print(f"Loading Whisper {size} model for {language}...",file=sys.stderr,end=" ",flush=True)
+logging.debug(f"Loading Whisper {size} model for {language}...")
 
 if args.backend == "faster-whisper":
     from faster_whisper import WhisperModel
     asr_cls = FasterWhisperASR
+    logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 else:
     import whisper
     import whisper_timestamped
@@ -46,10 +56,10 @@ else:
     tgt_language = language
 
 e = time.time()
-print(f"done. It took {round(e-t,2)} seconds.",file=sys.stderr)
+logging.debug(f"done. It took {round(e-t,2)} seconds.")
 
 if args.vad:
-    print("setting VAD filter",file=sys.stderr)
+    logging.debug("setting VAD filter")
     asr.use_vad()
 
 
@@ -71,18 +81,13 @@ if os.path.exists(args.warmup_file):
     # warm up the ASR, because the very first transcribe takes much more time than the other
     asr.transcribe(a)
 else:
-    print("Whisper is not warmed up",file=sys.stderr)
-
-
+    logging.debug("Whisper is not warmed up")
 
 
 ######### Server objects
 
 import line_packet
 import socket
-
-import logging
-
 
 class Connection:
     '''it wraps conn object'''
@@ -131,8 +136,6 @@ class ServerProcessor:
         out = []
         while sum(len(x) for x in out) < self.min_chunk*SAMPLING_RATE:
             raw_bytes = self.connection.non_blocking_receive_audio()
-            print(raw_bytes[:10])
-            print(len(raw_bytes))
             if not raw_bytes:
                 break
             sf = soundfile.SoundFile(io.BytesIO(raw_bytes), channels=1,endian="LITTLE",samplerate=SAMPLING_RATE, subtype="PCM_16",format="RAW")
@@ -163,7 +166,7 @@ class ServerProcessor:
             print("%1.0f %1.0f %s" % (beg,end,o[2]),flush=True,file=sys.stderr)
             return "%1.0f %1.0f %s" % (beg,end,o[2])
         else:
-            print(o,file=sys.stderr,flush=True)
+            # No text, so no output
             return None
 
     def send_result(self, o):
@@ -177,25 +180,19 @@ class ServerProcessor:
         while True:
             a = self.receive_audio_chunk()
             if a is None:
-                print("break here",file=sys.stderr)
                 break
             self.online_asr_proc.insert_audio_chunk(a)
             o = online.process_iter()
             try:
                 self.send_result(o)
             except BrokenPipeError:
-                print("broken pipe -- connection closed?",file=sys.stderr)
+                logging.info("broken pipe -- connection closed?")
                 break
 
 #        o = online.finish()  # this should be working
 #        self.send_result(o)
 
 
-
-
-# Start logging.
-level = logging.INFO
-logging.basicConfig(level=level, format='whisper-server-%(levelname)s: %(message)s')
 
 # server loop
 
