@@ -21,9 +21,9 @@ parser.add_argument("--warmup-file", type=str, dest="warmup_file",
 add_shared_args(parser)
 args = parser.parse_args()
 
-if args.log_level:
-    logging.basicConfig(format='whisper-server-%(levelname)s:%(name)s: %(message)s',
-                        level=getattr(logging, args.log_level))
+logging.basicConfig(format='whisper-server-%(levelname)s:%(name)s: %(message)s',
+                level=getattr(logging, args.log_level))
+logging.getLogger("faster_whisper").setLevel(logger.level)
 
 # setting whisper object by args 
 

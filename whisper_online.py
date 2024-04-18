@@ -106,7 +106,6 @@ class FasterWhisperASR(ASRBase):
 
     def load_model(self, modelsize=None, cache_dir=None, model_dir=None):
         from faster_whisper import WhisperModel
-        logging.getLogger("faster_whisper").setLevel(logger.level)
         if model_dir is not None:
             logger.debug(f"Loading whisper model from model_dir {model_dir}. modelsize and cache_dir parameters are not used.")
             model_size_or_path = model_dir
@@ -625,9 +624,9 @@ if __name__ == "__main__":
         logger.error("No or one option from --offline and --comp_unaware are available, not both. Exiting.")
         sys.exit(1)
 
-    if args.log_level:
-        logging.basicConfig(format='whisper-%(levelname)s:%(name)s: %(message)s',
-                            level=getattr(logging, args.log_level))
+    logging.basicConfig(format='whisper-%(levelname)s:%(name)s: %(message)s',
+                    level=getattr(logging, args.log_level))
+    logging.getLogger("faster_whisper").setLevel(logger.level)
 
     audio_path = args.audio_path
 
